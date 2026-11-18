@@ -1,0 +1,102 @@
+package com.zyh.sleep.controller;
+
+import com.zyh.sleep.context.UserContext;
+import com.zyh.sleep.dto.SleepStats;
+import com.zyh.sleep.entity.SleepRecord;
+import com.zyh.sleep.service.AiAnalysisService;
+import com.zyh.sleep.service.SleepRecordService;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/records")
+public class SleepRecordController {
+
+    private final SleepRecordService service;
+    private final AiAnalysisService aiAnalysisService;
+
+    public SleepRecordController(SleepRecordService service, AiAnalysisService aiAnalysisService) {
+        this.service = service;
+        this.aiAnalysisService = aiAnalysisService;
+    }
+
+    @PostMapping
+    public SleepRecord create(@RequestBody SleepRecord record) {
+        record.setUserId(UserContext.get());
+        return service.saveWithDuration(record);
+    }
+
+    @DeleteMapping("/{id}")
+    public boolean delete(@PathVariable Long id) {
+        return service.deleteOwn(id, UserContext.get());
+    }
+
+    @PutMapping("/{id}")
+    public SleepRecord update(@PathVariable Long id, @RequestBody SleepRecord record) {
+        record.setId(id);
+        return service.updateWithDuration(record, UserContext.get());
+    }
+
+    @GetMapping
+    public List<SleepRecord> list() {
+        return service.listWithDuration(UserContext.get());
+    }
+
+    @GetMapping("/stats")
+    public SleepStats stats() {
+        return service.stats(UserContext.get());
+    }
+
+    @GetMapping("/advice")
+    public Map<String, String> advice() {
+        Long userId = UserContext.get();
+        SleepStats s = service.stats(userId);
+        if (s.getRecordCount() == 0) {
+            return Map.of("advice", "还没有睡眠记录，先记录几天再来分析吧。");
+        }
+        String summary = buildSummary(s, service.listWithDuration(userId));
+        return Map.of("advice", aiAnalysisService.analyze(summary));
+    }
+
+    private String buildSummary(SleepStats s, List<SleepRecord> list) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("用户共记录了 ").append(s.getRecordCount()).append(" 天睡眠数据。\n");
+        sb.append("平均睡眠 ").append(fmtMinutes(s.getAvgSleepMinutes()))
+                .append("，平均入睡耗时 ").append(fmtMinutes(s.getAvgFallAsleepMinutes()))
+                .append("，平均质量 ").append(s.getAvgQuality()).append(" 分（满分5）")
+                .append("，平均夜醒 ").append(s.getAvgWakeCount()).append(" 次。\n");
+        sb.append("最早入睡 ").append(s.getEarliestSleepTime())
+                .append("，最晚入睡 ").append(s.getLatestSleepTime()).append("。\n");
+        sb.append("最近记录：\n");
+        list.stream()
+                .filter(r -> r.getBedTime() != null)
+                .sorted(Comparator.comparing(SleepRecord::getBedTime).reversed())
+                .limit(7)
+                .forEach(r -> sb.append("- ").append(r.getBedTime().toLocalDate())
+                        .append(" 上床 ").append(r.getBedTime().toLocalTime())
+                        .append("，睡着 ").append(r.getSleepTime() == null ? "-" : r.getSleepTime().toLocalTime())
+                        .append("，睡眠 ").append(r.getSleepMinutes() == null ? "-" : fmtMinutes(r.getSleepMinutes()))
+                        .append("，质量 ").append(r.getQuality() == null ? "-" : r.getQuality() + " 分")
+                        .append("，夜醒 ").append(r.getWakeCount() == null ? "-" : r.getWakeCount() + " 次")
+                        .append("\n"));
+        return sb.toString();
+    }
+
+    private String fmtMinutes(double minutes) {
+        if (minutes <= 0) {
+            return "未知";
+        }
+        long m = Math.round(minutes);
+        return (m / 60) + " 小时 " + (m % 60) + " 分";
+    }
+}
