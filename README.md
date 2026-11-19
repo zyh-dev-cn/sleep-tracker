@@ -24,6 +24,7 @@
 | 鉴权 | JWT（jjwt 0.12）、BCrypt 密码哈希 |
 | AI | DeepSeek Chat API（OpenAI 兼容格式） |
 | 前端 | Vue 3 + ECharts 5（CDN 引入，无需 Node 构建） |
+| 接口文档 | springdoc-openapi（Swagger UI） |
 
 ## 项目结构
 
@@ -87,6 +88,8 @@ mvn spring-boot:run
 或在 IDEA 中直接运行 `SleepTrackerApplication`。
 
 浏览器访问 <http://localhost:8080>，注册账号后即可使用。
+
+交互式接口文档：<http://localhost:8080/swagger-ui.html>。先调用 `/api/auth/login` 拿到 token，再点右上角 **Authorize** 填入即可调试其余接口。
 
 ## 接口说明
 

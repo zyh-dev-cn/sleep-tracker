@@ -6,6 +6,9 @@ import com.zyh.sleep.dto.SleepStats;
 import com.zyh.sleep.entity.SleepRecord;
 import com.zyh.sleep.service.AiAnalysisService;
 import com.zyh.sleep.service.SleepRecordService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "睡眠记录", description = "睡眠记录的增删改查、统计汇总与 AI 分析")
 @RestController
 @RequestMapping("/api/records")
 public class SleepRecordController {
@@ -32,35 +36,47 @@ public class SleepRecordController {
         this.aiAnalysisService = aiAnalysisService;
     }
 
+    @Operation(summary = "新增记录")
     @PostMapping
     public SleepRecord create(@RequestBody SleepRecord record) {
         record.setUserId(UserContext.get());
         return service.saveWithDuration(record);
     }
 
+    @Operation(summary = "删除记录（校验归属）")
     @DeleteMapping("/{id}")
     public boolean delete(@PathVariable Long id) {
         return service.deleteOwn(id, UserContext.get());
     }
 
+    @Operation(summary = "修改记录（校验归属）")
     @PutMapping("/{id}")
     public SleepRecord update(@PathVariable Long id, @RequestBody SleepRecord record) {
         record.setId(id);
         return service.updateWithDuration(record, UserContext.get());
     }
 
+    @Operation(summary = "查询记录列表")
     @GetMapping
-    public List<SleepRecord> list(@RequestParam(required = false) Integer days) {
+    public List<SleepRecord> list(
+            @Parameter(description = "只返回最近 N 天，不传则返回全部")
+            @RequestParam(required = false) Integer days) {
         return service.listWithDuration(UserContext.get(), days);
     }
 
+    @Operation(summary = "统计汇总")
     @GetMapping("/stats")
-    public SleepStats stats(@RequestParam(required = false) Integer days) {
+    public SleepStats stats(
+            @Parameter(description = "只统计最近 N 天，不传则统计全部")
+            @RequestParam(required = false) Integer days) {
         return service.stats(UserContext.get(), days);
     }
 
+    @Operation(summary = "AI 睡眠建议（命中缓存时 cached=true）")
     @GetMapping("/advice")
-    public Map<String, Object> advice(@RequestParam(required = false) Integer days) {
+    public Map<String, Object> advice(
+            @Parameter(description = "只分析最近 N 天，不传则分析全部")
+            @RequestParam(required = false) Integer days) {
         Long userId = UserContext.get();
         SleepStats s = service.stats(userId, days);
         if (s.getRecordCount() == 0) {
