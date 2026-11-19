@@ -172,6 +172,12 @@
 
         .ai-head h2 { margin-bottom: 0; }
 
+        .ai-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .ai-body {
             white-space: pre-line;
             font-size: 14px;
@@ -369,10 +375,15 @@
 
     <div class="panel">
         <div class="ai-head">
-            <h2>AI 睡眠分析</h2>
-            <button class="primary" :disabled="aiLoading" @click="getAdvice">
-                {{ aiLoading ? '分析中...' : '生成 AI 建议' }}
-            </button>
+            <div>
+                <h2>AI 睡眠分析</h2>
+            </div>
+            <div class="ai-actions">
+                <span class="tag" v-if="advice && adviceCached">缓存结果</span>
+                <button class="primary" :disabled="aiLoading" @click="getAdvice">
+                    {{ aiLoading ? '分析中...' : '生成 AI 建议' }}
+                </button>
+            </div>
         </div>
         <div class="ai-body" v-if="advice">{{ advice }}</div>
         <div class="empty" v-else>点击按钮，让 AI 根据你的睡眠数据给出建议</div>
@@ -470,6 +481,7 @@
             const stats = ref(null);
             const message = ref('');
             const advice = ref('');
+            const adviceCached = ref(false);
             const aiLoading = ref(false);
             const chartEl = ref(null);
             const formPanel = ref(null);
@@ -548,6 +560,7 @@
                 records.value = [];
                 stats.value = null;
                 advice.value = '';
+                adviceCached.value = false;
                 resetForm();
                 if (chart) {
                     chart.dispose();
@@ -570,6 +583,7 @@
                 if (range.value === days) return;
                 range.value = days;
                 advice.value = '';
+                adviceCached.value = false;
                 load();
             }
 
@@ -689,10 +703,12 @@
             async function getAdvice() {
                 aiLoading.value = true;
                 advice.value = '';
+                adviceCached.value = false;
                 try {
                     const res = await api('/api/records/advice' + (range.value ? '?days=' + range.value : ''));
                     const data = await res.json();
                     advice.value = data.advice;
+                    adviceCached.value = !!data.cached;
                 } catch (e) {
                     advice.value = '请求失败：' + e.message;
                 } finally {
@@ -721,7 +737,7 @@
             return {
                 token, username, authMode, authForm, authError, authLoading,
                 doAuth, switchAuth, logout,
-                records, stats, message, advice, aiLoading, form, chartEl, formPanel, editingId, range,
+                records, stats, message, advice, adviceCached, aiLoading, form, chartEl, formPanel, editingId, range,
                 submit, remove, startEdit, cancelEdit, getAdvice, fmt, time, setRange
             };
         }

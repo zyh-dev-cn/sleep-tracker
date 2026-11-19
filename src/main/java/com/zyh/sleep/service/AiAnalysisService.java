@@ -2,16 +2,22 @@ package com.zyh.sleep.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zyh.sleep.dto.AiAdvice;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class AiAnalysisService {
+
+    private static final long TTL_MILLIS = 6 * 60 * 60 * 1000L;
+    private static final int MAX_ENTRIES = 200;
 
     @Value("${ai.api-key:}")
     private String apiKey;
@@ -25,11 +31,36 @@ public class AiAnalysisService {
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String analyze(String summary) {
+    private final Map<String, CacheEntry> cache = Collections.synchronizedMap(
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CacheEntry> eldest) {
+                    return size() > MAX_ENTRIES;
+                }
+            });
+
+    public AiAdvice analyze(Long userId, String summary) {
         if (apiKey == null || apiKey.isBlank()) {
-            return "还没有配置 AI API Key，请在 application.yml 里填写 ai.api-key 后重启服务。";
+            return new AiAdvice("还没有配置 AI API Key，请在 application.yml 里填写 ai.api-key 后重启服务。", false);
         }
 
+        String key = userId + ":" + Integer.toHexString(summary.hashCode()) + ":" + summary.length();
+        CacheEntry hit = cache.get(key);
+        if (hit != null) {
+            if (hit.expireAt > System.currentTimeMillis()) {
+                return new AiAdvice(hit.advice, true);
+            }
+            cache.remove(key);
+        }
+
+        String advice = requestModel(summary);
+        if (!advice.startsWith("AI 分析失败")) {
+            cache.put(key, new CacheEntry(advice, System.currentTimeMillis() + TTL_MILLIS));
+        }
+        return new AiAdvice(advice, false);
+    }
+
+    private String requestModel(String summary) {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "messages", List.of(
@@ -57,5 +88,8 @@ public class AiAnalysisService {
         } catch (Exception e) {
             return "AI 分析失败：" + e.getMessage();
         }
+    }
+
+    private record CacheEntry(String advice, long expireAt) {
     }
 }

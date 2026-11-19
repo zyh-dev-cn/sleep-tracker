@@ -1,6 +1,7 @@
 package com.zyh.sleep.controller;
 
 import com.zyh.sleep.context.UserContext;
+import com.zyh.sleep.dto.AiAdvice;
 import com.zyh.sleep.dto.SleepStats;
 import com.zyh.sleep.entity.SleepRecord;
 import com.zyh.sleep.service.AiAnalysisService;
@@ -59,14 +60,15 @@ public class SleepRecordController {
     }
 
     @GetMapping("/advice")
-    public Map<String, String> advice(@RequestParam(required = false) Integer days) {
+    public Map<String, Object> advice(@RequestParam(required = false) Integer days) {
         Long userId = UserContext.get();
         SleepStats s = service.stats(userId, days);
         if (s.getRecordCount() == 0) {
-            return Map.of("advice", "还没有睡眠记录，先记录几天再来分析吧。");
+            return Map.of("advice", "还没有睡眠记录，先记录几天再来分析吧。", "cached", false);
         }
         String summary = buildSummary(s, service.listWithDuration(userId, days), days);
-        return Map.of("advice", aiAnalysisService.analyze(summary));
+        AiAdvice result = aiAnalysisService.analyze(userId, summary);
+        return Map.of("advice", result.advice(), "cached", result.cached());
     }
 
     private String buildSummary(SleepStats s, List<SleepRecord> list, Integer days) {
