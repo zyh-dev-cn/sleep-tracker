@@ -111,6 +111,8 @@ mvn spring-boot:run
 - **建议缓存**：以「用户 + 摘要内容哈希」为 key 做本地缓存（LRU，上限 200 条，6 小时过期）；摘要不变说明数据没变，直接复用结果，失败结果不入缓存。
 - **密钥管理**：真实密钥与数据库密码只存在于本地的 `application-local.yml`，仓库中的 `application.yml` 仅使用占位符。
 
+鉴权与数据隔离的完整实现说明见 [docs/auth.md](docs/auth.md)。
+
 ## 后续规划
 
 - Docker 部署
