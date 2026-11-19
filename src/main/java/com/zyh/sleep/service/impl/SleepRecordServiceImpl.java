@@ -6,9 +6,9 @@ import com.zyh.sleep.dto.SleepStats;
 import com.zyh.sleep.entity.SleepRecord;
 import com.zyh.sleep.mapper.SleepRecordMapper;
 import com.zyh.sleep.service.SleepRecordService;
+import com.zyh.sleep.util.SleepTimeUtils;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -59,19 +59,8 @@ public class SleepRecordServiceImpl extends ServiceImpl<SleepRecordMapper, Sleep
     }
 
     private void fillDuration(SleepRecord r) {
-        r.setFallAsleepMinutes(minutesBetween(r.getBedTime(), r.getSleepTime()));
-        r.setSleepMinutes(minutesBetween(r.getSleepTime(), r.getWakeTime()));
-    }
-
-    private Long minutesBetween(LocalDateTime from, LocalDateTime to) {
-        if (from == null || to == null) {
-            return null;
-        }
-        long minutes = Duration.between(from, to).toMinutes();
-        if (minutes < 0) {
-            minutes += 24 * 60;
-        }
-        return minutes;
+        r.setFallAsleepMinutes(SleepTimeUtils.minutesBetween(r.getBedTime(), r.getSleepTime()));
+        r.setSleepMinutes(SleepTimeUtils.minutesBetween(r.getSleepTime(), r.getWakeTime()));
     }
 
     @Override
@@ -105,16 +94,24 @@ public class SleepRecordServiceImpl extends ServiceImpl<SleepRecordMapper, Sleep
         s.setEarliestSleepTime(list.stream()
                 .map(SleepRecord::getSleepTime)
                 .filter(Objects::nonNull)
-                .min(Comparator.comparing(t -> t.toLocalTime()))
+                .min(Comparator.comparingInt(SleepRecordServiceImpl::nightMinutes))
                 .map(t -> t.toLocalTime().toString())
                 .orElse(null));
         s.setLatestSleepTime(list.stream()
                 .map(SleepRecord::getSleepTime)
                 .filter(Objects::nonNull)
-                .max(Comparator.comparing(t -> t.toLocalTime()))
+                .max(Comparator.comparingInt(SleepRecordServiceImpl::nightMinutes))
                 .map(t -> t.toLocalTime().toString())
                 .orElse(null));
         return s;
+    }
+
+    /**
+     * 把入睡时间换算成"夜晚时间轴"上的分钟数：中午 12 点前视为跨过午夜，加一天再比较。
+     */
+    private static int nightMinutes(LocalDateTime t) {
+        int minutes = t.getHour() * 60 + t.getMinute();
+        return t.getHour() < 12 ? minutes + 24 * 60 : minutes;
     }
 
     private double round(double value) {
