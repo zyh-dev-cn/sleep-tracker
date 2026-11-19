@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface SleepRecordService extends IService<SleepRecord> {
 
-    List<SleepRecord> listWithDuration(Long userId);
+    List<SleepRecord> listWithDuration(Long userId, Integer days);
 
     SleepRecord saveWithDuration(SleepRecord record);
 
@@ -16,5 +16,5 @@ public interface SleepRecordService extends IService<SleepRecord> {
 
     boolean deleteOwn(Long id, Long userId);
 
-    SleepStats stats(Long userId);
+    SleepStats stats(Long userId, Integer days);
 }

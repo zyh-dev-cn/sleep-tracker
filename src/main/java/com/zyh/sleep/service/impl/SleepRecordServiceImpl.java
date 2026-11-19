@@ -9,6 +9,7 @@ import com.zyh.sleep.service.SleepRecordService;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -18,10 +19,14 @@ import java.util.Objects;
 public class SleepRecordServiceImpl extends ServiceImpl<SleepRecordMapper, SleepRecord> implements SleepRecordService {
 
     @Override
-    public List<SleepRecord> listWithDuration(Long userId) {
-        List<SleepRecord> list = list(new LambdaQueryWrapper<SleepRecord>()
+    public List<SleepRecord> listWithDuration(Long userId, Integer days) {
+        LambdaQueryWrapper<SleepRecord> wrapper = new LambdaQueryWrapper<SleepRecord>()
                 .eq(SleepRecord::getUserId, userId)
-                .orderByDesc(SleepRecord::getBedTime));
+                .orderByDesc(SleepRecord::getBedTime);
+        if (days != null && days > 0) {
+            wrapper.ge(SleepRecord::getBedTime, LocalDate.now().minusDays(days - 1).atStartOfDay());
+        }
+        List<SleepRecord> list = list(wrapper);
         list.forEach(this::fillDuration);
         return list;
     }
@@ -70,8 +75,8 @@ public class SleepRecordServiceImpl extends ServiceImpl<SleepRecordMapper, Sleep
     }
 
     @Override
-    public SleepStats stats(Long userId) {
-        List<SleepRecord> list = listWithDuration(userId);
+    public SleepStats stats(Long userId, Integer days) {
+        List<SleepRecord> list = listWithDuration(userId, days);
         SleepStats s = new SleepStats();
         s.setRecordCount(list.size());
         if (list.isEmpty()) {

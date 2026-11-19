@@ -10,6 +10,7 @@
 - **记录管理**：历史记录支持编辑与删除，编辑时自动回填表单，保存后重算时长与统计
 - **自动统计**：睡眠时长、入睡耗时（跨天自动修正）、平均质量分、最早/最晚入睡时间
 - **趋势图**：ECharts 双折线图展示睡眠时长与入睡耗时变化
+- **时间范围筛选**：支持「最近 7 天 / 30 天 / 全部」，统计卡片、趋势图、AI 分析同步切换
 - **AI 分析**：把统计结果与最近 7 天记录拼成摘要，调用 DeepSeek 生成 3 条可执行建议
 - **用户体系**：注册 / 登录，JWT 鉴权，每个用户只能访问自己的数据
 
@@ -94,12 +95,12 @@ mvn spring-boot:run
 | --- | --- | --- |
 | POST | `/api/auth/register` | 注册并返回 token |
 | POST | `/api/auth/login` | 登录并返回 token |
-| GET | `/api/records` | 当前用户的全部睡眠记录 |
+| GET | `/api/records` | 当前用户的睡眠记录，支持 `?days=7` 限定时间范围 |
 | POST | `/api/records` | 新增记录 |
 | PUT | `/api/records/{id}` | 修改记录（校验归属） |
 | DELETE | `/api/records/{id}` | 删除记录（校验归属） |
-| GET | `/api/records/stats` | 统计汇总 |
-| GET | `/api/records/advice` | AI 睡眠建议 |
+| GET | `/api/records/stats` | 统计汇总，支持 `?days=7` |
+| GET | `/api/records/advice` | AI 睡眠建议，支持 `?days=7` |
 
 ## 设计说明
 
@@ -110,6 +111,5 @@ mvn spring-boot:run
 
 ## 后续规划
 
-- 按周 / 月范围筛选与对比
 - AI 建议结果缓存，避免重复调用
 - Docker 部署

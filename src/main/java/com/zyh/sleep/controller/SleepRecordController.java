@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Comparator;
@@ -48,28 +49,31 @@ public class SleepRecordController {
     }
 
     @GetMapping
-    public List<SleepRecord> list() {
-        return service.listWithDuration(UserContext.get());
+    public List<SleepRecord> list(@RequestParam(required = false) Integer days) {
+        return service.listWithDuration(UserContext.get(), days);
     }
 
     @GetMapping("/stats")
-    public SleepStats stats() {
-        return service.stats(UserContext.get());
+    public SleepStats stats(@RequestParam(required = false) Integer days) {
+        return service.stats(UserContext.get(), days);
     }
 
     @GetMapping("/advice")
-    public Map<String, String> advice() {
+    public Map<String, String> advice(@RequestParam(required = false) Integer days) {
         Long userId = UserContext.get();
-        SleepStats s = service.stats(userId);
+        SleepStats s = service.stats(userId, days);
         if (s.getRecordCount() == 0) {
             return Map.of("advice", "还没有睡眠记录，先记录几天再来分析吧。");
         }
-        String summary = buildSummary(s, service.listWithDuration(userId));
+        String summary = buildSummary(s, service.listWithDuration(userId, days), days);
         return Map.of("advice", aiAnalysisService.analyze(summary));
     }
 
-    private String buildSummary(SleepStats s, List<SleepRecord> list) {
+    private String buildSummary(SleepStats s, List<SleepRecord> list, Integer days) {
         StringBuilder sb = new StringBuilder();
+        if (days != null && days > 0) {
+            sb.append("以下数据来自最近 ").append(days).append(" 天。\n");
+        }
         sb.append("用户共记录了 ").append(s.getRecordCount()).append(" 天睡眠数据。\n");
         sb.append("平均睡眠 ").append(fmtMinutes(s.getAvgSleepMinutes()))
                 .append("，平均入睡耗时 ").append(fmtMinutes(s.getAvgFallAsleepMinutes()))
